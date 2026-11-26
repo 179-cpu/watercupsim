@@ -1,0 +1,2988 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HYDRO-OPT // 비관성계 유체 정역학 및 시간-최적 뱅뱅 제어 실험실</title>
+
+  <!-- Google Fonts: Space Grotesk (UI/Header) & JetBrains Mono (Telemetry/Numeric) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- 1. KaTeX CDN (실시간 학술 수식 조판) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+  <!-- 2. Lucide Icons CDN (산업용 정밀 계측 벡터 아이콘) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- 3. GSAP 3 CDN (수치 보간 및 하드웨어 택타일 마이크로 인터랙션) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       ANTI-AI MODERN LIGHT LAB DESIGN SYSTEM (PURE VANILLA CSS)
+       ========================================================================== */
+    :root {
+      --bg-app: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-sub: #f1f5f9;
+      --bg-sub-hover: #e2e8f0;
+      --border-crisp: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+
+      --fluid-base: #0284c7;
+      --fluid-light: #38bdf8;
+      --fluid-deep: #0369a1;
+
+      --status-safe: #059669;
+      --status-safe-bg: #ecfdf5;
+      --status-opt: #0284c7;
+      --status-opt-bg: #f0f9ff;
+      --status-warn: #d97706;
+      --status-warn-bg: #fffbeb;
+      --status-crit: #dc2626;
+      --status-crit-bg: #fef2f2;
+
+      --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 4px;
+      --radius-xs: 2px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-x: hidden;
+      selection-background-color: var(--fluid-light);
+    }
+
+    /* 미세 노이즈 그레인 오버레이 (디지털 플라스틱감 제거, 2.5% 불투명도) */
+    .grain-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.026;
+    }
+
+    /* 전체 실험실 그리드 레이아웃 */
+    .lab-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-width: 1920px;
+      margin: 0 auto;
+      border-left: 1px solid var(--border-crisp);
+      border-right: 1px solid var(--border-crisp);
+    }
+
+    /* 상단 계측기 헤더 바 */
+    .lab-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 10px 18px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-crisp);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--text-primary);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 8px;
+      border-radius: var(--radius-xs);
+    }
+
+    .brand-badge .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--fluid-light);
+      border-radius: 50%;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .brand-subtitle {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-left: 10px;
+      border-left: 1px solid var(--border-strong);
+    }
+
+    /* 상단 상태 표시기 및 툴바 */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .shortcut-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-sub);
+      padding: 4px 10px;
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-bottom-width: 2px;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* 소프트 택타일(Soft-Tactile) 물리 버튼 */
+    .tactile-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(15, 23, 42, 0.04);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .tactile-btn:hover {
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      border-color: #94a3b8;
+    }
+
+    .tactile-btn:active,
+    .tactile-btn.is-pressed {
+      transform: translateY(1px) !important;
+      box-shadow: inset 0 2px 3px rgba(15, 23, 42, 0.12) !important;
+      background: #f1f5f9;
+    }
+
+    .tactile-btn.primary {
+      background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+      border-color: #0369a1;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(2, 132, 199, 0.2);
+      color: #ffffff;
+    }
+
+    .tactile-btn.primary:hover {
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      border-color: #075985;
+    }
+
+    .tactile-btn.primary:active {
+      background: #0369a1;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .tactile-btn.active-mode {
+      background: var(--status-opt-bg);
+      border-color: var(--fluid-base);
+      color: var(--fluid-deep);
+    }
+
+    .tactile-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2px;
+    }
+
+    /* 메인 워크스페이스 (좌측 물리 뷰포트 & 그래프 / 우측 파라미터 및 KaTeX 제어반) */
+    .lab-workspace {
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 1200px) {
+      .lab-workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 좌측 컬럼: 메인 캔버스 + 하단 4채널 텔레메트리 그래프 */
+    .viewport-column {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-crisp);
+      background: var(--bg-app);
+      min-width: 0;
+    }
+
+    /* 상단 실시간 핵심 수치 스트립 (Telemetry Ribbon) */
+    .telemetry-ribbon {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-crisp);
+    }
+
+    @media (max-width: 900px) {
+      .telemetry-ribbon {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .metric-cell {
+      padding: 10px 14px;
+      border-right: 1px solid var(--border-crisp);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .metric-cell:last-child {
+      border-right: none;
+    }
+
+    .metric-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .metric-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+    }
+
+    .metric-unit {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .metric-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    /* 여유고 안전 지표 게이지 바 */
+    .safety-gauge-bar {
+      width: 100%;
+      height: 5px;
+      background: var(--bg-sub);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+      border: 1px solid var(--border-crisp);
+    }
+
+    .safety-gauge-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--status-safe);
+      transition: background-color 0.1s ease;
+    }
+
+    @keyframes pulse-critical {
+      0%, 100% { opacity: 1; background-color: #dc2626; }
+      50% { opacity: 0.35; background-color: #ef4444; }
+    }
+
+    .critical-blink {
+      animation: pulse-critical 0.35s infinite;
+    }
+
+    /* 메인 컨베이어 벨트 캔버스 컨테이너 */
+    .sim-stage-wrapper {
+      position: relative;
+      width: 100%;
+      height: 430px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-crisp);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #simCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #simCanvas:active {
+      cursor: grabbing;
+    }
+
+    /* 캔버스 상단 오버레이 컨트롤 바 */
+    .canvas-overlay-top {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .overlay-pill {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-opt);
+    }
+
+    /* 하단 4채널 실시간 그래프 그리드 */
+    .charts-section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      background: var(--bg-surface);
+    }
+
+    .charts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--bg-sub);
+      border-bottom: 1px solid var(--border-crisp);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .charts-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-line {
+      width: 14px;
+      height: 2px;
+      display: inline-block;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      min-height: 225px;
+      flex: 1;
+    }
+
+    @media (max-width: 1100px) {
+      .charts-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      position: relative;
+      border-right: 1px solid var(--border-crisp);
+      border-bottom: 1px solid var(--border-crisp);
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      min-height: 210px;
+    }
+
+    .chart-card:last-child {
+      border-right: none;
+    }
+
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--bg-sub);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .chart-card-title {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .chart-canvas-wrap {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 170px;
+    }
+
+    .chart-canvas-wrap canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ==========================================================================
+       우측 제어 및 학술 수식 사이드바
+       ========================================================================== */
+    .control-column {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+      overflow-y: auto;
+    }
+
+    .panel-block {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-crisp);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+    }
+
+    .panel-title svg {
+      width: 14px;
+      height: 14px;
+      color: var(--fluid-base);
+    }
+
+    .panel-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-xs);
+      color: var(--text-secondary);
+    }
+
+    /* 실행 및 모드 전환 주 제어부 */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .mode-switch-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-sm);
+    }
+
+    .mode-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-xs);
+      background: transparent;
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .mode-tab.active {
+      background: var(--bg-surface);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .mode-tab svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    /* 프리셋 버튼 4종 그리드 */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .preset-btn {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 8px 10px;
+      text-align: left;
+      justify-content: flex-start;
+    }
+
+    .preset-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-xs);
+      color: var(--fluid-base);
+      flex-shrink: 0;
+    }
+
+    .preset-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .preset-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .preset-specs {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* 정밀 눈금 슬라이더 & 플로팅 툴팁 */
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .slider-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .slider-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slider-symbol {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--fluid-deep);
+      background: var(--status-opt-bg);
+      padding: 1px 5px;
+      border: 1px solid #bae6fd;
+      border-radius: 2px;
+    }
+
+    .slider-readout {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .slider-track-container {
+      position: relative;
+      padding: 6px 0 10px 0;
+    }
+
+    /* 플로팅 수치 툴팁 (GSAP 제어) */
+    .slider-tooltip {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.85);
+      background: var(--text-primary);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 2px;
+      pointer-events: none;
+      opacity: 0;
+      white-space: nowrap;
+      z-index: 20;
+    }
+
+    .slider-tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 3px 3px 0;
+      border-style: solid;
+      border-color: var(--text-primary) transparent transparent;
+    }
+
+    input[type="range"].precision-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-strong);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      z-index: 2;
+    }
+
+    input[type="range"].precision-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #ffffff;
+      border: 2px solid var(--fluid-base);
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+      cursor: ew-resize;
+      transition: background-color 0.1s ease, transform 0.1s ease;
+    }
+
+    input[type="range"].precision-slider::-webkit-slider-thumb:hover {
+      background: var(--status-opt-bg);
+      transform: scale(1.08);
+    }
+
+    input[type="range"].precision-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #ffffff;
+      border: 2px solid var(--fluid-base);
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+      cursor: ew-resize;
+    }
+
+    /* 슬라이더 하단 미세 눈금선 (Tick Marks) */
+    .slider-ticks {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 7px;
+      margin-top: 3px;
+    }
+
+    .slider-ticks span {
+      width: 1px;
+      height: 4px;
+      background: var(--border-strong);
+      display: inline-block;
+    }
+
+    .slider-ticks span.major {
+      height: 6px;
+      background: var(--text-muted);
+    }
+
+    /* KaTeX 실시간 동기화 수식 패널 */
+    .katex-box {
+      background: var(--bg-sub);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      overflow-x: auto;
+    }
+
+    .katex-box:last-child {
+      margin-bottom: 0;
+    }
+
+    .katex-box-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .katex-render-target {
+      font-size: 12px;
+      color: var(--text-primary);
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* 유출 경보 배너 */
+    .spill-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-sub);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      transition: all 0.2s ease;
+    }
+
+    .spill-banner.has-spilled {
+      background: var(--status-crit-bg);
+      border-color: #fca5a5;
+      color: var(--status-crit);
+    }
+  </style>
+</head>
+<body>
+  <!-- 미세 노이즈 그레인 필터 오버레이 (인라인 SVG feTurbulence) -->
+  <svg class="grain-overlay" xmlns="http://www.w3.org/2000/svg">
+    <filter id="lab-grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+      <feColorMatrix type="saturate" values="0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#lab-grain-filter)" />
+  </svg>
+
+  <div class="lab-shell">
+    <!-- ====================================================================
+         상단 실험실 계측 헤더
+         ==================================================================== -->
+    <header class="lab-header">
+      <div class="brand-group">
+        <span class="brand-badge">
+          <span class="dot"></span>
+          CFD-BENCH // 2026.4
+        </span>
+        <h1 class="brand-title">비관성계 유체 정역학 &amp; 시간-최적 뱅뱅 제어 실험실</h1>
+        <span class="brand-subtitle">Quasi-Static Equilibrium &amp; Minimum-Time Trajectory</span>
+      </div>
+
+      <div class="header-controls">
+        <div class="shortcut-pills" title="키보드 단축키 지원">
+          <span><kbd class="kbd">Space</kbd> 재생/일시정지</span>
+          <span><kbd class="kbd">A</kbd> 최적 주행</span>
+          <span><kbd class="kbd">M</kbd> 수동/자동</span>
+          <span><kbd class="kbd">R</kbd> 원점 리셋</span>
+        </div>
+
+        <button id="btnCameraMode" class="tactile-btn" title="뷰포트 카메라 모드 전환 (컨베이어 전체 궤적 vs 컵 정밀 추적)">
+          <i data-lucide="scan-eye"></i>
+          <span id="cameraModeLabel">월드 프레임 (0→L)</span>
+        </button>
+
+        <button id="btnAudioToggle" class="tactile-btn" title="절차적 Web Audio API 모터/유출 사운드 토글">
+          <i id="audioIcon" data-lucide="volume-2"></i>
+          <span id="audioLabel">AUDIO ON</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ====================================================================
+         메인 실험실 워크스페이스
+         ==================================================================== -->
+    <div class="lab-workspace">
+      <!-- 좌측 영역: 텔레메트리 리본 + 2D 컨베이어 벨트 캔버스 + 4채널 실시간 그래프 -->
+      <main class="viewport-column">
+        <!-- 상단 6채널 핵심 텔레메트리 스트립 -->
+        <section class="telemetry-ribbon">
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>순시 가속도 a(t)</span>
+              <span id="badgeAccelState" class="panel-tag">IDLE</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valAccel" class="metric-value">0.000</span>
+              <span class="metric-unit">m/s²</span>
+            </div>
+            <div class="metric-sub">임계 한계 a_max: <strong id="valAMaxSub">4.903</strong> m/s²</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>수면 경사각 θ</span>
+              <span>tan⁻¹(a/g)</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valTheta" class="metric-value">0.00</span>
+              <span class="metric-unit">deg (°)</span>
+            </div>
+            <div class="metric-sub">측벽 상승 δh: <strong id="valDeltaH">0.00</strong> cm</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>여유고 안전율</span>
+              <span id="valSafetyStatus" style="color: var(--status-safe); font-weight:700;">SAFE</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valClearancePct" class="metric-value">100.0</span>
+              <span class="metric-unit">% 잔여</span>
+            </div>
+            <div class="safety-gauge-bar">
+              <div id="safetyGaugeFill" class="safety-gauge-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>컨베이어 위치 / 속력</span>
+              <span>x(t), v(t)</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valPos" class="metric-value">0.000</span>
+              <span class="metric-unit">m</span>
+            </div>
+            <div class="metric-sub">속력 v: <strong id="valVel">0.000</strong> m/s (v_max <span id="valVMaxSub">2.21</span>)</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>경과 시간 / 최적 T(L)</span>
+              <span>BANG-BANG</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valTime" class="metric-value">0.000</span>
+              <span class="metric-unit">s</span>
+            </div>
+            <div class="metric-sub">이론 최소 T(L): <strong id="valOptimalT">1.428</strong> s</div>
+          </div>
+
+          <div class="metric-cell">
+            <div class="metric-label">
+              <span>누적 유출량 (Spill)</span>
+              <span>VOLUME</span>
+            </div>
+            <div class="metric-value-row">
+              <span id="valSpillVol" class="metric-value">0.00</span>
+              <span class="metric-unit">mL</span>
+            </div>
+            <div id="spillStatusSub" class="metric-sub">무유출 보존 상태 (0 Drops)</div>
+          </div>
+        </section>
+
+        <!-- 메인 2D 물리 캔버스 -->
+        <section class="sim-stage-wrapper">
+          <div class="canvas-overlay-top">
+            <div class="overlay-pill">
+              <span id="modeDot" class="status-dot"></span>
+              <strong id="overlayModeText">MANUAL DRAG MODE</strong>
+              <span style="color: var(--text-muted);">|</span>
+              <span id="overlayHintText">벨트를 마우스/터치로 좌우 드래그하거나 [RUN OPTIMAL]을 클릭하십시오</span>
+            </div>
+
+            <div class="overlay-pill">
+              <span>중력 가속도 g = <strong>9.80665 m/s²</strong></span>
+              <span style="color: var(--text-muted);">|</span>
+              <span>유효 중력 <strong>g_eff = -a i - g k</strong></span>
+            </div>
+          </div>
+
+          <canvas id="simCanvas"></canvas>
+        </section>
+
+        <!-- 하단 4채널 실시간 Canvas 2D 스트리밍 그래프 -->
+        <section class="charts-section">
+          <div class="charts-header">
+            <span>REAL-TIME KINEMATICS &amp; OPTIMAL TRAJECTORY TELEMETRY (60/120FPS DIRECT CANVAS 2D)</span>
+            <div class="charts-legend">
+              <span class="legend-item">
+                <span class="legend-line" style="background: #94a3b8; border-bottom: 1px dashed #64748b;"></span>
+                이론 최적 궤적 (Bang-Bang Reference)
+              </span>
+              <span class="legend-item">
+                <span class="legend-line" style="background: #0284c7;"></span>
+                실시간 계측 궤적 (Live Trace)
+              </span>
+              <span class="legend-item">
+                <span class="legend-line" style="background: #dc2626;"></span>
+                임계 한계 (±a_max)
+              </span>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <!-- 채널 1: 위치-시간 x(t) -->
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <span class="chart-card-title">CH1. 위치 궤적 x(t) [m]</span>
+                <span id="ch1Readout">x = 0.00 m</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chartPos"></canvas>
+              </div>
+            </div>
+
+            <!-- 채널 2: 속도-시간 v(t) -->
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <span class="chart-card-title">CH2. 속도 프로파일 v(t) [m/s]</span>
+                <span id="ch2Readout">v = 0.00 m/s</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chartVel"></canvas>
+              </div>
+            </div>
+
+            <!-- 채널 3: 가속도-시간 a(t) -->
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <span class="chart-card-title">CH3. 가속도 입력 a(t) [m/s²]</span>
+                <span id="ch3Readout">a = 0.00 m/s²</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chartAcc"></canvas>
+              </div>
+            </div>
+
+            <!-- 채널 4: 무리함수 역함수 T(L) 대조 곡선 -->
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <span class="chart-card-title">CH4. 최소 시간 곡선 T(L) [s]</span>
+                <span id="ch4Readout">T(L) = 1.43 s</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chartSqrt"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- ====================================================================
+           우측 영역: 실행 제어기, 프리셋, 정밀 슬라이더, 실시간 KaTeX 수식 패널
+           ==================================================================== -->
+      <aside class="control-column">
+        <!-- 1. 주행 제어 & 듀얼 인터랙션 모드 -->
+        <div class="panel-block">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="cpu"></i>
+              <span>제어 모드 및 궤적 실행기</span>
+            </div>
+            <span class="panel-tag">BANG-BANG CONTROLLER</span>
+          </div>
+
+          <div class="action-grid">
+            <button id="btnRunOptimal" class="tactile-btn primary">
+              <i data-lucide="zap"></i>
+              <span>RUN OPTIMAL</span>
+            </button>
+            <button id="btnPlayPause" class="tactile-btn">
+              <i id="playPauseIcon" data-lucide="pause"></i>
+              <span id="playPauseText">PAUSE</span>
+            </button>
+            <button id="btnReset" class="tactile-btn">
+              <i data-lucide="rotate-ccw"></i>
+              <span>RESET</span>
+            </button>
+          </div>
+
+          <div class="mode-switch-row">
+            <button id="tabModeManual" class="mode-tab active">
+              <i data-lucide="hand"></i>
+              <span>수동 드래그 제어 (Manual)</span>
+            </button>
+            <button id="tabModeAuto" class="mode-tab">
+              <i data-lucide="gauge"></i>
+              <span>최적 뱅뱅 제어 (Optimal)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. 원클릭 용기 규격 프리셋 (4종) -->
+        <div class="panel-block">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="flask-conical"></i>
+              <span>표준 용기 규격 프리셋</span>
+            </div>
+            <span class="panel-tag">ONE-CLICK PRESETS</span>
+          </div>
+
+          <div class="preset-grid">
+            <button class="tactile-btn preset-btn" data-preset="espresso">
+              <div class="preset-icon"><i data-lucide="coffee"></i></div>
+              <div class="preset-info">
+                <span class="preset-name">에스프레소 잔</span>
+                <span class="preset-specs">W:0.06 H:0.08 H₀:0.04m</span>
+              </div>
+            </button>
+
+            <button class="tactile-btn preset-btn" data-preset="beer">
+              <div class="preset-icon"><i data-lucide="beer"></i></div>
+              <div class="preset-info">
+                <span class="preset-name">맥주잔 (여유고 협소)</span>
+                <span class="preset-specs">W:0.08 H:0.20 H₀:0.17m</span>
+              </div>
+            </button>
+
+            <button class="tactile-btn preset-btn active-mode" data-preset="beaker">
+              <div class="preset-icon"><i data-lucide="beaker"></i></div>
+              <div class="preset-info">
+                <span class="preset-name">실험실 비커 (표준)</span>
+                <span class="preset-specs">W:0.12 H:0.15 H₀:0.09m</span>
+              </div>
+            </button>
+
+            <button class="tactile-btn preset-btn" data-preset="bowl">
+              <div class="preset-icon"><i data-lucide="soup"></i></div>
+              <div class="preset-info">
+                <span class="preset-name">광동형 볼 (넓은 폭)</span>
+                <span class="preset-specs">W:0.18 H:0.10 H₀:0.07m</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. 기하 및 목표 거리 정밀 슬라이더 -->
+        <div class="panel-block">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="sliders-horizontal"></i>
+              <span>매개변수 정밀 설정</span>
+            </div>
+            <span id="clearanceTag" class="panel-tag">ΔH = 0.060 m</span>
+          </div>
+
+          <div class="slider-group">
+            <!-- 슬라이더 1: 컵 폭 W -->
+            <div class="slider-item">
+              <div class="slider-header">
+                <span class="slider-label">
+                  <span class="slider-symbol">W</span>
+                  <span>수직 용기 폭 (Cup Width)</span>
+                </span>
+                <span id="readoutW" class="slider-readout">0.120 m</span>
+              </div>
+              <div class="slider-track-container">
+                <div id="tooltipW" class="slider-tooltip">0.120 m</div>
+                <input id="sliderW" type="range" class="precision-slider" min="0.05" max="0.20" step="0.005" value="0.12" />
+                <div class="slider-ticks">
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 슬라이더 2: 용기 총 높이 H (에스프레소 잔 0.08m 프리셋 호환을 위해 0.08~0.25m 지원) -->
+            <div class="slider-item">
+              <div class="slider-header">
+                <span class="slider-label">
+                  <span class="slider-symbol">H</span>
+                  <span>용기 측벽 높이 (Wall Height)</span>
+                </span>
+                <span id="readoutH" class="slider-readout">0.150 m</span>
+              </div>
+              <div class="slider-track-container">
+                <div id="tooltipH" class="slider-tooltip">0.150 m</div>
+                <input id="sliderH" type="range" class="precision-slider" min="0.08" max="0.25" step="0.005" value="0.15" />
+                <div class="slider-ticks">
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 슬라이더 3: 정지 액체 수위 H_0 -->
+            <div class="slider-item">
+              <div class="slider-header">
+                <span class="slider-label">
+                  <span class="slider-symbol">H₀</span>
+                  <span>정지 액체 수위 (Static Level)</span>
+                </span>
+                <span id="readoutH0" class="slider-readout">0.090 m</span>
+              </div>
+              <div class="slider-track-container">
+                <div id="tooltipH0" class="slider-tooltip">0.090 m</div>
+                <input id="sliderH0" type="range" class="precision-slider" min="0.02" max="0.22" step="0.005" value="0.09" />
+                <div class="slider-ticks">
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 슬라이더 4: 목표 이송 거리 L -->
+            <div class="slider-item">
+              <div class="slider-header">
+                <span class="slider-label">
+                  <span class="slider-symbol">L</span>
+                  <span>목표 이송 거리 (Target Distance)</span>
+                </span>
+                <span id="readoutL" class="slider-readout">2.50 m</span>
+              </div>
+              <div class="slider-track-container">
+                <div id="tooltipL" class="slider-tooltip">2.50 m</div>
+                <input id="sliderL" type="range" class="precision-slider" min="0.50" max="5.00" step="0.05" value="2.50" />
+                <div class="slider-ticks">
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span><span></span><span></span><span></span><span></span>
+                  <span class="major"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. KaTeX 실시간 수치 동기화 학술 수식 패널 -->
+        <div class="panel-block" style="flex: 1;">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="sigma"></i>
+              <span>실시간 수치 동기화 해석 수식 (KaTeX)</span>
+            </div>
+            <span class="panel-tag">LIVE NUMERICAL SYNC</span>
+          </div>
+
+          <!-- 수식 1: 준정적 평형 수면 방정식 -->
+          <div class="katex-box">
+            <div class="katex-box-label">
+              <span>(1) 준정적 평형 수면 &amp; 측벽 상승량</span>
+              <span>Quasi-Static Surface</span>
+            </div>
+            <div id="katexEq1" class="katex-render-target"></div>
+          </div>
+
+          <!-- 수식 2: 무유출 임계 가속도 a_max -->
+          <div class="katex-box">
+            <div class="katex-box-label">
+              <span>(2) 무유출 임계 가속도 (Critical Limit)</span>
+              <span>δh_max ≤ H - H₀</span>
+            </div>
+            <div id="katexEq2" class="katex-render-target"></div>
+          </div>
+
+          <!-- 수식 3: 시간-최적 뱅뱅 제어 무리함수 역함수 T(L) -->
+          <div class="katex-box">
+            <div class="katex-box-label">
+              <span>(3) 최소 시간 도달 무리함수 T(L)</span>
+              <span>Bang-Bang Optimal</span>
+            </div>
+            <div id="katexEq3" class="katex-render-target"></div>
+          </div>
+
+          <!-- 유출 상태 요약 배너 -->
+          <div id="spillBanner" class="spill-banner" style="margin-top: 10px;">
+            <span id="spillBannerText">체적 보존 상태: 중심축 수위 y(0) = H₀ 일정 유지</span>
+            <strong id="spillBannerCount">0.00 mL</strong>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MATHEMATICAL ENGINE, CANVAS 2D PIPELINE & PROCEDURAL AUDIO SCRIPT
+       ====================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* --------------------------------------------------------------------
+         1. 상수 및 물리 상태 정의 (MATHEMATICAL CONSTANTS & STATE)
+         -------------------------------------------------------------------- */
+      const G = 9.80665; // 표준 중력 가속도 (m/s²)
+
+      // 용기 프리셋 데이터
+      const PRESETS = {
+        espresso: { name: '에스프레소 잔', W: 0.06, H: 0.08, H0: 0.04 },
+        beer:     { name: '맥주잔',       W: 0.08, H: 0.20, H0: 0.17 },
+        beaker:   { name: '실험실 비커',  W: 0.12, H: 0.15, H0: 0.09 },
+        bowl:     { name: '광동형 볼',    W: 0.18, H: 0.10, H0: 0.07 }
+      };
+
+      // 시뮬레이션 전역 상태
+      const state = {
+        // 기하 및 목표 매개변수
+        W: 0.12,        // 컵 폭 (m)
+        H: 0.15,        // 컵 높이 (m)
+        H0: 0.09,       // 정지 수위 (m)
+        L: 2.50,        // 목표 이동 거리 (m)
+
+        // 유도된 이론 임계치
+        deltaH: 0.06,   // 상부 여유고 H - H0 (m)
+        aMax: 0,        // 무유출 최대 허용 가속도 (m/s²)
+        T_opt: 0,       // 최소 도달 시간 T(L) (s)
+        vMax_opt: 0,    // 뱅뱅 변곡점 최대 속력 (m/s)
+
+        // 순시 운동학 상태
+        x: 0.0,         // 컨베이어 벨트 및 컵 위치 (m)
+        v: 0.0,         // 순시 속도 (m/s)
+        a: 0.0,         // 순시 가속도 (m/s²)
+        t: 0.0,         // 경과 시간 (s)
+
+        // 수면 물리량
+        tanTheta: 0.0,  // 수면 기울기 a(t)/g
+        thetaDeg: 0.0,  // 수면 경사각 (deg)
+        wallRise: 0.0,  // 측벽 수면 상승량 δh_max (m)
+        clearancePct: 100.0, // 잔여 여유고 비율 (%)
+
+        // 인터랙션 제어 상태
+        mode: 'manual', // 'manual' | 'auto'
+        isRunning: true,
+        autoCompleted: false,
+        cameraFollowCup: false, // false: 월드 프레임(0->L), true: 컵 정밀 추적
+
+        // 수동 드래그 & 2계 저역통과 EMA 필터 상태
+        isDragging: false,
+        dragLastClientX: 0,
+        targetManualVel: 0,
+        emaVel1: 0,
+        emaVel2: 0,
+        emaAcc1: 0,
+        emaAcc2: 0,
+
+        // 유출 파티클 및 누적 유출량
+        spillVolumeML: 0.0,
+        spillDropsCount: 0,
+        particles: [],
+
+        // 실시간 텔레메트리 히스토리 (x, v, a 기록)
+        history: [],
+        maxHistoryPoints: 360
+      };
+
+      // GSAP 보간용 표시 객체
+      const tweenDisplay = {
+        spillML: 0
+      };
+
+      /* --------------------------------------------------------------------
+         2. DOM 요소 참조 및 초기화
+         -------------------------------------------------------------------- */
+      const dom = {
+        simCanvas: document.getElementById('simCanvas'),
+        chartPos: document.getElementById('chartPos'),
+        chartVel: document.getElementById('chartVel'),
+        chartAcc: document.getElementById('chartAcc'),
+        chartSqrt: document.getElementById('chartSqrt'),
+
+        // 상단 텔레메트리
+        valAccel: document.getElementById('valAccel'),
+        badgeAccelState: document.getElementById('badgeAccelState'),
+        valAMaxSub: document.getElementById('valAMaxSub'),
+        valTheta: document.getElementById('valTheta'),
+        valDeltaH: document.getElementById('valDeltaH'),
+        valSafetyStatus: document.getElementById('valSafetyStatus'),
+        valClearancePct: document.getElementById('valClearancePct'),
+        safetyGaugeFill: document.getElementById('safetyGaugeFill'),
+        valPos: document.getElementById('valPos'),
+        valVel: document.getElementById('valVel'),
+        valVMaxSub: document.getElementById('valVMaxSub'),
+        valTime: document.getElementById('valTime'),
+        valOptimalT: document.getElementById('valOptimalT'),
+        valSpillVol: document.getElementById('valSpillVol'),
+        spillStatusSub: document.getElementById('spillStatusSub'),
+
+        // 오버레이
+        modeDot: document.getElementById('modeDot'),
+        overlayModeText: document.getElementById('overlayModeText'),
+        overlayHintText: document.getElementById('overlayHintText'),
+
+        // 차트 헤더 리더
+        ch1Readout: document.getElementById('ch1Readout'),
+        ch2Readout: document.getElementById('ch2Readout'),
+        ch3Readout: document.getElementById('ch3Readout'),
+        ch4Readout: document.getElementById('ch4Readout'),
+
+        // 버튼 및 탭
+        btnRunOptimal: document.getElementById('btnRunOptimal'),
+        btnPlayPause: document.getElementById('btnPlayPause'),
+        playPauseIcon: document.getElementById('playPauseIcon'),
+        playPauseText: document.getElementById('playPauseText'),
+        btnReset: document.getElementById('btnReset'),
+        tabModeManual: document.getElementById('tabModeManual'),
+        tabModeAuto: document.getElementById('tabModeAuto'),
+        btnCameraMode: document.getElementById('btnCameraMode'),
+        cameraModeLabel: document.getElementById('cameraModeLabel'),
+        btnAudioToggle: document.getElementById('btnAudioToggle'),
+        audioIcon: document.getElementById('audioIcon'),
+        audioLabel: document.getElementById('audioLabel'),
+        presetBtns: document.querySelectorAll('.preset-btn'),
+
+        // 슬라이더 & 툴팁
+        sliderW: document.getElementById('sliderW'),
+        sliderH: document.getElementById('sliderH'),
+        sliderH0: document.getElementById('sliderH0'),
+        sliderL: document.getElementById('sliderL'),
+        readoutW: document.getElementById('readoutW'),
+        readoutH: document.getElementById('readoutH'),
+        readoutH0: document.getElementById('readoutH0'),
+        readoutL: document.getElementById('readoutL'),
+        tooltipW: document.getElementById('tooltipW'),
+        tooltipH: document.getElementById('tooltipH'),
+        tooltipH0: document.getElementById('tooltipH0'),
+        tooltipL: document.getElementById('tooltipL'),
+        clearanceTag: document.getElementById('clearanceTag'),
+
+        // KaTeX 타겟
+        katexEq1: document.getElementById('katexEq1'),
+        katexEq2: document.getElementById('katexEq2'),
+        katexEq3: document.getElementById('katexEq3'),
+
+        // 유출 배너
+        spillBanner: document.getElementById('spillBanner'),
+        spillBannerText: document.getElementById('spillBannerText'),
+        spillBannerCount: document.getElementById('spillBannerCount')
+      };
+
+      /* --------------------------------------------------------------------
+         3. 무의존성 절차적 오디오 엔진 (WEB AUDIO API SYNTHESIZER)
+         -------------------------------------------------------------------- */
+      const soundEngine = {
+        ctx: null,
+        isMuted: false,
+        initialized: false,
+        motorOsc: null,
+        motorGain: null,
+        airFilter: null,
+        airGain: null,
+        lastSplashTime: 0,
+
+        init() {
+          if (this.initialized) return;
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            this.ctx = new AudioCtx();
+
+            // 1) 컨베이어 벨트 저주파 서보 모터 구동음
+            this.motorOsc = this.ctx.createOscillator();
+            this.motorOsc.type = 'triangle';
+            this.motorOsc.frequency.value = 48;
+
+            const motorFilter = this.ctx.createBiquadFilter();
+            motorFilter.type = 'lowpass';
+            motorFilter.frequency.value = 160;
+
+            this.motorGain = this.ctx.createGain();
+            this.motorGain.gain.value = 0.0;
+
+            this.motorOsc.connect(motorFilter);
+            motorFilter.connect(this.motorGain);
+            this.motorGain.connect(this.ctx.destination);
+            this.motorOsc.start();
+
+            // 2) 가속도/마찰 핑크 노이즈 스트림
+            const bufferSize = this.ctx.sampleRate * 2;
+            const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+              const white = Math.random() * 2 - 1;
+              b0 = 0.99886 * b0 + white * 0.0555179;
+              b1 = 0.99332 * b1 + white * 0.0750759;
+              b2 = 0.96900 * b2 + white * 0.1538520;
+              b3 = 0.86650 * b3 + white * 0.3104856;
+              b4 = 0.55000 * b4 + white * 0.5329522;
+              b5 = -0.7616 * b5 - white * 0.0168980;
+              output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.04;
+              b6 = white * 0.115926;
+            }
+
+            const whiteNoise = this.ctx.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            whiteNoise.loop = true;
+
+            this.airFilter = this.ctx.createBiquadFilter();
+            this.airFilter.type = 'bandpass';
+            this.airFilter.frequency.value = 400;
+            this.airFilter.Q.value = 2.2;
+
+            this.airGain = this.ctx.createGain();
+            this.airGain.gain.value = 0.0;
+
+            whiteNoise.connect(this.airFilter);
+            this.airFilter.connect(this.airGain);
+            this.airGain.connect(this.ctx.destination);
+            whiteNoise.start();
+
+            this.initialized = true;
+          } catch (err) {
+            console.warn('Web Audio API 초기화 건너뜀:', err);
+          }
+        },
+
+        resume() {
+          if (!this.initialized) this.init();
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        },
+
+        update(vel, acc) {
+          if (!this.initialized || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          if (this.isMuted || !state.isRunning) {
+            this.motorGain.gain.setTargetAtTime(0, now, 0.05);
+            this.airGain.gain.setTargetAtTime(0, now, 0.05);
+            return;
+          }
+
+          const speed = Math.abs(vel);
+          const accelMag = Math.abs(acc);
+
+          // 속력 비례 모터 주파수 및 볼륨
+          const targetFreq = 45 + Math.min(speed * 38, 180);
+          const targetMotorGain = Math.min(speed * 0.045, 0.12);
+          this.motorOsc.frequency.setTargetAtTime(targetFreq, now, 0.04);
+          this.motorGain.gain.setTargetAtTime(targetMotorGain, now, 0.04);
+
+          // 가속도 크기에 비례하는 벨트 구동 공기 마찰음
+          const targetAirFreq = 280 + Math.min(accelMag * 60, 900);
+          const targetAirGain = Math.min(accelMag * 0.008, 0.07);
+          this.airFilter.frequency.setTargetAtTime(targetAirFreq, now, 0.05);
+          this.airGain.gain.setTargetAtTime(targetAirGain, now, 0.05);
+        },
+
+        triggerSplash(intensity) {
+          if (!this.initialized || this.isMuted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          if (now - this.lastSplashTime < 0.07) return;
+          this.lastSplashTime = now;
+
+          try {
+            // 스플래시 물방울 공명 버스트
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const startFreq = 520 + Math.random() * 480;
+            osc.frequency.setValueAtTime(startFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(startFreq * 1.65, now + 0.065);
+
+            const vol = Math.min(0.03 + intensity * 0.06, 0.14);
+            gain.gain.setValueAtTime(vol, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+          } catch (e) {
+            // 오디오 예외 무시
+          }
+        },
+
+        toggleMute() {
+          this.resume();
+          this.isMuted = !this.isMuted;
+          dom.audioLabel.textContent = this.isMuted ? 'MUTED' : 'AUDIO ON';
+          dom.audioIcon.setAttribute('data-lucide', this.isMuted ? 'volume-x' : 'volume-2');
+          if (window.lucide) window.lucide.createIcons();
+        }
+      };
+
+      /* --------------------------------------------------------------------
+         4. 수학 및 물리 파라미터 재계산 & KaTeX 실시간 조판
+         -------------------------------------------------------------------- */
+      function recalculatePhysicsParameters() {
+        // 정지 수위 H0가 용기 높이 H에 너무 근접하거나 초과하지 않도록 최소 여유고 0.005m 보장
+        if (state.H0 > state.H - 0.005) {
+          state.H0 = Math.max(0.02, +(state.H - 0.005).toFixed(3));
+          dom.sliderH0.value = state.H0;
+        }
+
+        state.deltaH = Math.max(0.005, state.H - state.H0);
+
+        // (2) 무유출 임계 가속도: a_max = 2 * g * (H - H_0) / W
+        state.aMax = (2 * G * state.deltaH) / state.W;
+
+        // (3) 뱅뱅 최적 제어 최소 도달 시간: T(L) = 2 * sqrt(L / a_max) = sqrt((2 * W * L) / (g * (H - H_0)))
+        state.T_opt = 2 * Math.sqrt(state.L / state.aMax);
+
+        // 변곡점(t = T/2) 최대 속력: v_max = a_max * (T / 2)
+        state.vMax_opt = state.aMax * (state.T_opt / 2);
+
+        // UI 리더 업데이트
+        dom.readoutW.textContent = `${state.W.toFixed(3)} m`;
+        dom.readoutH.textContent = `${state.H.toFixed(3)} m`;
+        dom.readoutH0.textContent = `${state.H0.toFixed(3)} m`;
+        dom.readoutL.textContent = `${state.L.toFixed(2)} m`;
+        dom.clearanceTag.textContent = `ΔH = ${state.deltaH.toFixed(3)} m`;
+
+        dom.valAMaxSub.textContent = state.aMax.toFixed(3);
+        dom.valVMaxSub.textContent = state.vMax_opt.toFixed(2);
+        dom.valOptimalT.textContent = state.T_opt.toFixed(3);
+        dom.ch4Readout.textContent = `T(${state.L.toFixed(2)}m) = ${state.T_opt.toFixed(3)} s`;
+
+        renderKaTeXFormulas();
+      }
+
+      function renderKaTeXFormulas() {
+        if (!window.katex) return;
+        try {
+          // 수식 1: 준정적 평형 수면 방정식 & 측벽 상승량
+          const eq1Latex = String.raw`y(x) = ${state.H0.toFixed(3)} - x \frac{a(t)}{9.807}, \quad \delta h_{\max} = \frac{${state.W.toFixed(3)}}{2} \frac{|a(t)|}{g}`;
+          dom.katexEq1.innerHTML = window.katex.renderToString(eq1Latex, {
+            throwOnError: false,
+            displayMode: false
+          });
+
+          // 수식 2: 무유출 임계 가속도 a_max (실시간 분모/분자 수치 대입)
+          const eq2Latex = String.raw`a_{\max} = \frac{2 g (H - H_0)}{W} = \frac{2(9.807)(${state.H.toFixed(3)} - ${state.H0.toFixed(3)})}{${state.W.toFixed(3)}} = \mathbf{${state.aMax.toFixed(3)}\text{ m/s}^2}`;
+          dom.katexEq2.innerHTML = window.katex.renderToString(eq2Latex, {
+            throwOnError: false,
+            displayMode: false
+          });
+
+          // 수식 3: 최소 도달 시간 무리함수 T(L)
+          const eq3Latex = String.raw`T(L) = \sqrt{\frac{2 W L}{g(H - H_0)}} = \sqrt{\frac{2(${state.W.toFixed(3)})(${state.L.toFixed(2)})}{9.807(${state.deltaH.toFixed(3)})}} = \mathbf{${state.T_opt.toFixed(3)}\text{ s}}`;
+          dom.katexEq3.innerHTML = window.katex.renderToString(eq3Latex, {
+            throwOnError: false,
+            displayMode: false
+          });
+        } catch (err) {
+          console.error('KaTeX 렌더링 오류:', err);
+        }
+      }
+
+      /* --------------------------------------------------------------------
+         5. 물리 시뮬레이션 스텝 (QUASI-STATIC + BANG-BANG + SPILL ENGINE)
+         -------------------------------------------------------------------- */
+      function stepPhysics(dt) {
+        if (!state.isRunning) return;
+
+        // 프레임 드롭 시 과도한 dt 클램핑
+        const clampedDt = Math.min(dt, 0.033);
+
+        if (state.mode === 'auto') {
+          // ================================================================
+          // 자동 최적 제어 (Bang-Bang Time-Optimal Control)
+          // ================================================================
+          const T = state.T_opt;
+          const halfT = T * 0.5;
+
+          if (!state.autoCompleted) {
+            state.t += clampedDt;
+
+            if (state.t <= halfT) {
+              // 구간 1: t ∈ [0, T/2] 등가속 (+a_max)
+              state.a = +state.aMax;
+              state.v = state.aMax * state.t;
+              state.x = 0.5 * state.aMax * state.t * state.t;
+            } else if (state.t < T) {
+              // 구간 2: t ∈ (T/2, T] 등감속 (-a_max)
+              const rem = T - state.t;
+              state.a = -state.aMax;
+              state.v = state.aMax * rem;
+              state.x = state.L - 0.5 * state.aMax * rem * rem;
+            } else {
+              // 목표 거리 L 정밀 도달 및 완전 정지
+              state.t = T;
+              state.x = state.L;
+              state.v = 0.0;
+              state.a = 0.0;
+              state.autoCompleted = true;
+            }
+          } else {
+            state.a = 0.0;
+            state.v = 0.0;
+          }
+        } else {
+          // ================================================================
+          // 수동 제어 (Manual Mode: 2계 저역통과 EMA 필터 + 지수 감쇠 관성 롤아웃)
+          // ================================================================
+          state.t += clampedDt;
+
+          if (state.isDragging) {
+            // 마우스 드래그 목표 속도를 2계 EMA로 평활화하여 수치 미분 스파이크 억제
+            const alphaV = 1 - Math.exp(-clampedDt * 22);
+            state.emaVel1 += alphaV * (state.targetManualVel - state.emaVel1);
+            state.emaVel2 += alphaV * (state.emaVel1 - state.emaVel2);
+
+            const rawAcc = (state.emaVel2 - state.v) / Math.max(clampedDt, 0.001);
+            const alphaA = 1 - Math.exp(-clampedDt * 18);
+            state.emaAcc1 += alphaA * (rawAcc - state.emaAcc1);
+            state.emaAcc2 += alphaA * (state.emaAcc1 - state.emaAcc2);
+
+            // 최대 수동 가속도 클램핑 (한계 초과 유출 실험이 가능하도록 2.8 * aMax 허용)
+            const maxManualAcc = Math.max(state.aMax * 2.8, 22.0);
+            state.a = Math.max(-maxManualAcc, Math.min(maxManualAcc, state.emaAcc2));
+            state.v = state.emaVel2;
+            state.x += state.v * clampedDt;
+
+            // 프레임 끝에서 드래그 정지 감지를 위해 목표 속도 감쇠
+            state.targetManualVel *= Math.exp(-clampedDt * 14);
+          } else {
+            // 드래그 해제 시 부드러운 지수 감쇠 관성 롤아웃 (Inertial Roll-out)
+            const damping = 3.2;
+            state.a = -damping * state.v;
+            state.v *= Math.exp(-damping * clampedDt);
+            if (Math.abs(state.v) < 0.002) {
+              state.v = 0;
+              state.a = 0;
+            }
+            state.x += state.v * clampedDt;
+            state.emaVel1 = state.v;
+            state.emaVel2 = state.v;
+            state.emaAcc1 = state.a;
+            state.emaAcc2 = state.a;
+          }
+
+          // 컨베이어 이동 범위 소프트 바운드 (-0.5m ~ L + 0.8m)
+          const minX = -0.4;
+          const maxX = state.L + 0.6;
+          if (state.x < minX) {
+            state.x = minX;
+            state.v = 0;
+            state.a = 0;
+          } else if (state.x > maxX) {
+            state.x = maxX;
+            state.v = 0;
+            state.a = 0;
+          }
+        }
+
+        // ================================================================
+        // (1) 준정적 평형 수면 방정식 계산
+        // ================================================================
+        // 중요: 최적 자동 주행 시 수치 부동소수점 오차로 인해 δh_max가 ΔH를 1e-12라도 넘지 않도록 보장
+        let effectiveAcc = state.a;
+        if (state.mode === 'auto') {
+          effectiveAcc = Math.max(-state.aMax, Math.min(state.aMax, effectiveAcc));
+        }
+
+        state.tanTheta = effectiveAcc / G;
+        state.thetaDeg = Math.atan(state.tanTheta) * (180 / Math.PI);
+        state.wallRise = (state.W * 0.5) * (Math.abs(effectiveAcc) / G);
+
+        // 잔여 여유고 비율 (%)
+        const usedRatio = state.wallRise / state.deltaH;
+        state.clearancePct = Math.max(0, (1 - usedRatio) * 100);
+
+        // ================================================================
+        // 유출 파티클 시뮬레이터 (수동 모드에서 |a(t)| > a_max 초과 시 발동)
+        // ================================================================
+        if (state.mode === 'manual' && state.wallRise > state.deltaH + 1e-5) {
+          const excessHeight = state.wallRise - state.deltaH; // 초과 수위 (m)
+          // 유출 유량 (초과 수위에 비례, mL/s)
+          const spillRateMLPerSec = excessHeight * 850;
+          const addedML = spillRateMLPerSec * clampedDt;
+          state.spillVolumeML += addedML;
+
+          // 초과 높이에 비례하여 2D 물방울 파티클 방출
+          const spawnCount = Math.min(6, Math.ceil((excessHeight / state.deltaH) * 4));
+          // a > 0 이면 왼쪽 벽(x = -W/2)이 상승하여 넘침, a < 0 이면 오른쪽 벽(x = +W/2)이 상승하여 넘침
+          const spillSide = state.a > 0 ? -1 : 1;
+
+          for (let i = 0; i < spawnCount; i++) {
+            state.spillDropsCount++;
+            state.particles.push({
+              // 컵 중심 기준 상대 위치에서 시작하여 월드 좌표로 변환
+              worldX: state.x + spillSide * (state.W * 0.5 + 0.004) + (Math.random() - 0.5) * 0.008,
+              worldY: state.H + Math.random() * 0.008,
+              // 수평 속도는 현재 컵 속도 + 바깥쪽 이탈 속도
+              vx: state.v + spillSide * (0.25 + Math.random() * 0.55 + excessHeight * 3.5),
+              vy: 0.15 + Math.random() * 0.45,
+              radius: 2.2 + Math.random() * 2.2,
+              alpha: 0.92,
+              onBelt: false
+            });
+          }
+
+          soundEngine.triggerSplash(Math.min(1, excessHeight / state.deltaH));
+        }
+
+        // 방출된 파티클 뉴턴 역학 적분 (중력 낙하 및 벨트 표면 후방 이동)
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          if (!p.onBelt) {
+            p.vy -= G * clampedDt;
+            p.worldX += p.vx * clampedDt;
+            p.worldY += p.vy * clampedDt;
+
+            // 벨트 상면(y = 0)에 충돌 시 벨트 위에 안착
+            if (p.worldY <= 0.003) {
+              p.worldY = 0.003;
+              p.vy = 0;
+              p.onBelt = true;
+            }
+          } else {
+            // 벨트 표면에서 벨트 속도에 동조하며 점진적으로 페이드아웃
+            p.vx += (state.v - p.vx) * Math.min(1, clampedDt * 8);
+            p.worldX += p.vx * clampedDt;
+            p.alpha -= clampedDt * 0.85;
+          }
+
+          if (p.alpha <= 0.02) {
+            state.particles.splice(i, 1);
+          }
+        }
+
+        // 히스토리 기록 (주행 중이거나 속력/가속도가 있을 때)
+        if (state.isDragging || Math.abs(state.v) > 0.0005 || Math.abs(state.a) > 0.001 || (state.mode === 'auto' && !state.autoCompleted)) {
+          state.history.push({
+            t: state.t,
+            x: state.x,
+            v: state.v,
+            a: state.a
+          });
+          if (state.history.length > state.maxHistoryPoints) {
+            state.history.shift();
+          }
+        }
+
+        // 절차적 사운드 업데이트
+        soundEngine.update(state.v, state.a);
+
+        // 텔레메트리 UI 갱신
+        updateTelemetryDOM();
+      }
+
+      /* --------------------------------------------------------------------
+         6. 텔레메트리 DOM 및 GSAP 카운터 업데이트
+         -------------------------------------------------------------------- */
+      function updateTelemetryDOM() {
+        dom.valAccel.textContent = (state.a >= 0 ? '+' : '') + state.a.toFixed(3);
+        dom.valTheta.textContent = (state.thetaDeg >= 0 ? '+' : '') + state.thetaDeg.toFixed(2);
+        dom.valDeltaH.textContent = (state.wallRise * 100).toFixed(2);
+        dom.valClearancePct.textContent = state.clearancePct.toFixed(1);
+        dom.valPos.textContent = state.x.toFixed(3);
+        dom.valVel.textContent = state.v.toFixed(3);
+        dom.valTime.textContent = state.t.toFixed(3);
+
+        // 가속 상태 뱃지
+        if (Math.abs(state.a) < 0.02) {
+          dom.badgeAccelState.textContent = state.autoCompleted ? 'ARRIVED' : 'STATIC';
+          dom.badgeAccelState.style.color = 'var(--text-secondary)';
+        } else if (state.a > 0) {
+          dom.badgeAccelState.textContent = '+ACCEL';
+          dom.badgeAccelState.style.color = 'var(--fluid-base)';
+        } else {
+          dom.badgeAccelState.textContent = '-DECEL';
+          dom.badgeAccelState.style.color = 'var(--status-warn)';
+        }
+
+        // 여유고 안전 지표 게이지 (녹색 -> 황색 -> 적색 점멸)
+        const usedPct = Math.min(100, (state.wallRise / state.deltaH) * 100);
+        dom.safetyGaugeFill.style.width = `${usedPct.toFixed(1)}%`;
+
+        if (state.wallRise > state.deltaH + 1e-4) {
+          dom.valSafetyStatus.textContent = 'SPILLOVER!';
+          dom.valSafetyStatus.style.color = 'var(--status-crit)';
+          dom.safetyGaugeFill.classList.add('critical-blink');
+          dom.safetyGaugeFill.style.backgroundColor = 'var(--status-crit)';
+        } else if (usedPct >= 95) {
+          dom.valSafetyStatus.textContent = 'CRITICAL LIMIT';
+          dom.valSafetyStatus.style.color = 'var(--status-crit)';
+          dom.safetyGaugeFill.classList.add('critical-blink');
+        } else if (usedPct >= 70) {
+          dom.valSafetyStatus.textContent = 'CAUTION';
+          dom.valSafetyStatus.style.color = 'var(--status-warn)';
+          dom.safetyGaugeFill.classList.remove('critical-blink');
+          dom.safetyGaugeFill.style.backgroundColor = 'var(--status-warn)';
+        } else {
+          dom.valSafetyStatus.textContent = 'SAFE';
+          dom.valSafetyStatus.style.color = 'var(--status-safe)';
+          dom.safetyGaugeFill.classList.remove('critical-blink');
+          dom.safetyGaugeFill.style.backgroundColor = 'var(--status-safe)';
+        }
+
+        // 유출량 GSAP 트윈 보간
+        if (window.gsap) {
+          window.gsap.to(tweenDisplay, {
+            spillML: state.spillVolumeML,
+            duration: 0.18,
+            overwrite: true,
+            onUpdate: () => {
+              const formatted = tweenDisplay.spillML.toFixed(2);
+              dom.valSpillVol.textContent = formatted;
+              dom.spillBannerCount.textContent = `${formatted} mL`;
+            }
+          });
+        } else {
+          dom.valSpillVol.textContent = state.spillVolumeML.toFixed(2);
+          dom.spillBannerCount.textContent = `${state.spillVolumeML.toFixed(2)} mL`;
+        }
+
+        if (state.spillVolumeML > 0) {
+          dom.valSpillVol.style.color = 'var(--status-crit)';
+          dom.spillStatusSub.textContent = `경보: 임계 가속도 초과 (${state.spillDropsCount} Drops)`;
+          dom.spillStatusSub.style.color = 'var(--status-crit)';
+          dom.spillBanner.classList.add('has-spilled');
+          dom.spillBannerText.textContent = '경보: 수동 가속도가 a_max를 초과하여 측벽 유출이 발생했습니다!';
+        } else {
+          dom.valSpillVol.style.color = 'var(--text-primary)';
+          dom.spillStatusSub.textContent = '무유출 보존 상태 (0 Drops)';
+          dom.spillStatusSub.style.color = 'var(--text-secondary)';
+          dom.spillBanner.classList.remove('has-spilled');
+          dom.spillBannerText.textContent = '체적 보존 상태: 중심축 수위 y(0) = H₀ 일정 유지';
+        }
+
+        // 하단 차트 실시간 헤더 리더
+        dom.ch1Readout.textContent = `x = ${state.x.toFixed(2)} m`;
+        dom.ch2Readout.textContent = `v = ${state.v.toFixed(2)} m/s`;
+        dom.ch3Readout.textContent = `a = ${state.a.toFixed(2)} m/s²`;
+      }
+
+      /* --------------------------------------------------------------------
+         7. 메인 2D 컨베이어 & 정밀 용기/유체 렌더러 (CANVAS 2D PIPELINE)
+         -------------------------------------------------------------------- */
+      function resizeCanvasToDisplaySize(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        return { ctx: canvas.getContext('2d'), w: rect.width, h: rect.height, dpr };
+      }
+
+      function renderMainSimulation() {
+        const { ctx, w, h, dpr } = resizeCanvasToDisplaySize(dom.simCanvas);
+        ctx.save();
+        ctx.scale(dpr, dpr);
+
+        // 1) 순백색 실험실 캔버스 배경 (#ffffff)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+
+        // 미세 방안 눈금 그리드 (Lab Engineering Grid)
+        const gridStep = 28;
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let gx = 0; gx < w; gx += gridStep) {
+          ctx.moveTo(gx, 0);
+          ctx.lineTo(gx, h);
+        }
+        for (let gy = 0; gy < h; gy += gridStep) {
+          ctx.moveTo(0, gy);
+          ctx.lineTo(w, gy);
+        }
+        ctx.stroke();
+
+        // 컨베이어 기하 레이아웃 설정
+        const beltTopY = h - 92;
+        const beltHeight = 36;
+        const pulleyRadius = beltHeight * 0.5;
+        const leftPulleyX = 68;
+        const rightPulleyX = w - 68;
+        const conveyorSpanPx = Math.max(200, rightPulleyX - leftPulleyX);
+
+        // 컵 시각 스케일 (수직 측벽, 메니스커스, 내부 벡터 HUD가 선명하게 보이도록 자동 보정)
+        // 최대 높이 0.25m가 약 215px에 대응하도록 미터당 픽셀(cupScale) 설정
+        const cupScale = Math.min(920, (beltTopY - 76) / Math.max(state.H, 0.16));
+        const cupWidthPx = state.W * cupScale;
+        const cupHeightPx = state.H * cupScale;
+        const waterStaticPx = state.H0 * cupScale;
+
+        // 월드 좌표 x ∈ [0, L]을 컨베이어 상면 픽셀 위치로 매핑
+        const startDockX = leftPulleyX + Math.max(55, cupWidthPx * 0.65);
+        const targetDockX = rightPulleyX - Math.max(55, cupWidthPx * 0.65);
+        const travelSpanPx = Math.max(120, targetDockX - startDockX);
+        const worldToTrackPx = travelSpanPx / state.L;
+
+        // 카메라 모드에 따른 컵 화면 X 좌표 및 벨트 슬랫 변위 계산
+        let cupScreenCenterX;
+        let cameraWorldOffset = 0;
+        if (state.cameraFollowCup) {
+          cupScreenCenterX = w * 0.5;
+          cameraWorldOffset = state.x;
+        } else {
+          cupScreenCenterX = startDockX + state.x * worldToTrackPx;
+        }
+
+        // 2) 출발선(x=0), 변곡점(x=L/2), 목표 도달 게이트(x=L) 수직 가이드라인 렌더링
+        const drawStationMarker = (worldPos, label, subLabel, color, isTarget) => {
+          const sx = state.cameraFollowCup
+            ? cupScreenCenterX + (worldPos - state.x) * cupScale
+            : startDockX + worldPos * worldToTrackPx;
+
+          if (sx < leftPulleyX - 20 || sx > rightPulleyX + 20) return;
+
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = isTarget ? 1.5 : 1;
+          ctx.setLineDash(isTarget ? [5, 4] : [3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(sx, 58);
+          ctx.lineTo(sx, beltTopY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 상단 깃발 배지
+          ctx.font = '600 10px "JetBrains Mono", monospace';
+          const tagW = ctx.measureText(label).width + 12;
+          ctx.fillStyle = isTarget ? '#f0f9ff' : '#f8fafc';
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.fillRect(sx - tagW * 0.5, 58, tagW, 18);
+          ctx.strokeRect(sx - tagW * 0.5, 58, tagW, 18);
+
+          ctx.fillStyle = isTarget ? '#0284c7' : '#475569';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, sx, 67);
+
+          if (subLabel) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '500 9px "JetBrains Mono", monospace';
+            ctx.fillText(subLabel, sx, 86);
+          }
+          ctx.restore();
+        };
+
+        drawStationMarker(0, 'ORIGIN x=0', 'v=0', '#94a3b8', false);
+        drawStationMarker(state.L * 0.5, 'SWITCH x=L/2', `t=${(state.T_opt * 0.5).toFixed(2)}s`, '#f59e0b', false);
+        drawStationMarker(state.L, `TARGET L=${state.L.toFixed(2)}m`, `T=${state.T_opt.toFixed(2)}s`, '#0284c7', true);
+
+        // 3) 컨베이어 벨트 프레임 및 무한 트레드 슬랫(Slat) 애니메이션
+        ctx.save();
+        // 벨트 본체 외곽 라운드 트랙
+        ctx.beginPath();
+        ctx.arc(leftPulleyX, beltTopY + pulleyRadius, pulleyRadius, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.arc(rightPulleyX, beltTopY + pulleyRadius, pulleyRadius, Math.PI * 1.5, Math.PI * 0.5);
+        ctx.closePath();
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#334155';
+        ctx.stroke();
+
+        // 내부 기계 구조 빔
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(leftPulleyX, beltTopY + 8, conveyorSpanPx, beltHeight - 16);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(leftPulleyX, beltTopY + 8, conveyorSpanPx, beltHeight - 16);
+
+        // 상단 및 하단 벨트 트레드 슬랫 이동 (벨트 위치 state.x에 동기화)
+        const slatSpacing = 18;
+        const beltPixelDisplacement = state.cameraFollowCup ? 0 : state.x * worldToTrackPx;
+        const topOffset = ((beltPixelDisplacement % slatSpacing) + slatSpacing) % slatSpacing;
+        const bottomOffset = (((-beltPixelDisplacement) % slatSpacing) + slatSpacing) % slatSpacing;
+
+        ctx.fillStyle = '#475569';
+        for (let sx = leftPulleyX + topOffset; sx <= rightPulleyX; sx += slatSpacing) {
+          // 상부 트레드 슬랫 (오른쪽 이동)
+          ctx.fillRect(sx - 2, beltTopY - 3, 4, 5);
+        }
+        for (let sx = leftPulleyX + bottomOffset; sx <= rightPulleyX; sx += slatSpacing) {
+          // 하부 복귀 트레드 슬랫 (왼쪽 이동)
+          ctx.fillRect(sx - 2, beltTopY + beltHeight - 2, 4, 5);
+        }
+
+        // 양단 롤러 풀리(Pulley) 속도 연동 십자 스포크 회전 애니메이션
+        const pulleyAngle = (state.x * worldToTrackPx) / pulleyRadius;
+        const drawPulley = (px, py, label) => {
+          ctx.save();
+          ctx.translate(px, py);
+
+          // 풀리 휠 디스크
+          ctx.beginPath();
+          ctx.arc(0, 0, pulleyRadius - 3, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#475569';
+          ctx.stroke();
+
+          // 회전 십자 스포크 (4-spoke cross + rim markers)
+          ctx.rotate(pulleyAngle);
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 2;
+          for (let k = 0; k < 4; k++) {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(pulleyRadius - 5, 0);
+            ctx.stroke();
+            ctx.rotate(Math.PI * 0.5);
+          }
+
+          // 중심 베어링 허브
+          ctx.beginPath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#0f172a';
+          ctx.fill();
+          ctx.restore();
+
+          // 풀리 하단 축 라벨
+          ctx.fillStyle = '#64748b';
+          ctx.font = '600 9px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(label, px, py + pulleyRadius + 16);
+        };
+
+        drawPulley(leftPulleyX, beltTopY + pulleyRadius, 'IDLER PULLEY');
+        drawPulley(rightPulleyX, beltTopY + pulleyRadius, 'SERVO DRIVE');
+
+        // 벨트 하단 선형 엔코더 진행 게이지 바
+        const barY = beltTopY + beltHeight + 28;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(leftPulleyX, barY, conveyorSpanPx, 4);
+        const progressRatio = Math.max(0, Math.min(1, state.x / state.L));
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(leftPulleyX, barY, conveyorSpanPx * progressRatio, 4);
+        ctx.restore();
+
+        // 4) 정밀 수직 측벽 용기(Cup) 및 준정적 유체 렌더링
+        const cupLeftX = cupScreenCenterX - cupWidthPx * 0.5;
+        const cupRightX = cupScreenCenterX + cupWidthPx * 0.5;
+        const cupBottomY = beltTopY - 2;
+        const cupTopY = cupBottomY - cupHeightPx;
+
+        // 좌/우 측벽에서의 국소 수위 계산:
+        // y(x) = H_0 - x * (a(t) / g), 단 x ∈ [-W/2, +W/2]
+        // 왼쪽 벽(x = -W/2): y_left = H_0 + (W/2)*(a/g)
+        // 오른쪽 벽(x = +W/2): y_right = H_0 - (W/2)*(a/g)
+        let yLeftM = state.H0 + (state.W * 0.5) * state.tanTheta;
+        let yRightM = state.H0 - (state.W * 0.5) * state.tanTheta;
+
+        // 용기 내부 시각적 렌더링을 위해 [0, H]로 클램핑하되, 중심축(x=0)은 항상 H_0를 지나는 직선으로 표현
+        const clampedLeftM = Math.max(0, Math.min(state.H, yLeftM));
+        const clampedRightM = Math.max(0, Math.min(state.H, yRightM));
+
+        const waterLeftY = cupBottomY - clampedLeftM * cupScale;
+        const waterRightY = cupBottomY - clampedRightM * cupScale;
+        const waterCenterY = cupBottomY - waterStaticPx;
+
+        // 컵 내부 배경 (투명 유리 질감)
+        ctx.save();
+        ctx.fillStyle = 'rgba(241, 245, 249, 0.42)';
+        ctx.fillRect(cupLeftX, cupTopY, cupWidthPx, cupHeightPx);
+
+        // 정지 수위 H_0 기준선 (체적 보존 중심축 피벗 표시)
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cupLeftX, waterCenterY);
+        ctx.lineTo(cupRightX, waterCenterY);
+        ctx.stroke();
+
+        // 수직 중심축 x = 0 가이드라인
+        ctx.beginPath();
+        ctx.moveTo(cupScreenCenterX, cupTopY);
+        ctx.lineTo(cupScreenCenterX, cupBottomY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 유체 폴리곤 클리핑 및 렌더링 (시안-아쿠아 #0284c7 기저 + #38bdf8 반사층 + 메니스커스 곡선)
+        ctx.beginPath();
+        ctx.rect(cupLeftX + 1.5, cupTopY, cupWidthPx - 3, cupHeightPx - 1.5);
+        ctx.clip();
+
+        // 표면장력 메니스커스 높이 (3.5px)
+        const meniscusPx = 4.0;
+
+        ctx.beginPath();
+        ctx.moveTo(cupLeftX, cupBottomY);
+        ctx.lineTo(cupLeftX, waterLeftY - meniscusPx);
+        // 좌측 벽면 메니스커스 오목 곡선
+        ctx.quadraticCurveTo(
+          cupLeftX + 3,
+          waterLeftY,
+          cupLeftX + Math.min(10, cupWidthPx * 0.12),
+          waterLeftY + (waterRightY - waterLeftY) * (Math.min(10, cupWidthPx * 0.12) / cupWidthPx)
+        );
+        // 완벽한 직선 평면 수면 (Quasi-Static Planar Surface)
+        ctx.lineTo(
+          cupRightX - Math.min(10, cupWidthPx * 0.12),
+          waterRightY - (waterRightY - waterLeftY) * (Math.min(10, cupWidthPx * 0.12) / cupWidthPx)
+        );
+        // 우측 벽면 메니스커스 오목 곡선
+        ctx.quadraticCurveTo(
+          cupRightX - 3,
+          waterRightY,
+          cupRightX,
+          waterRightY - meniscusPx
+        );
+        ctx.lineTo(cupRightX, cupBottomY);
+        ctx.closePath();
+
+        // 아쿠아-시안 유체 그라디언트 채우기
+        const fluidGrad = ctx.createLinearGradient(0, Math.min(waterLeftY, waterRightY), 0, cupBottomY);
+        fluidGrad.addColorStop(0, 'rgba(56, 189, 248, 0.72)'); // #38bdf8 반사층
+        fluidGrad.addColorStop(0.25, 'rgba(2, 132, 199, 0.80)'); // #0284c7 기저층
+        fluidGrad.addColorStop(1, 'rgba(3, 105, 161, 0.90)');
+        ctx.fillStyle = fluidGrad;
+        ctx.fill();
+
+        // 선명한 직선 수면 하이라이트 라인 렌더링
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(cupLeftX, waterLeftY);
+        ctx.lineTo(cupRightX, waterRightY);
+        ctx.stroke();
+
+        // 중심축 피벗 포인트 (x=0, y=H_0) 마커
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0369a1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cupScreenCenterX, waterCenterY, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 유리 질감 수직 하이라이트 스트립
+        const glassHighlight = ctx.createLinearGradient(cupLeftX, 0, cupLeftX + 14, 0);
+        glassHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+        glassHighlight.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
+        ctx.fillStyle = glassHighlight;
+        ctx.fillRect(cupLeftX + 3, cupTopY + 4, 12, cupHeightPx - 8);
+        ctx.restore();
+
+        // 완벽한 수직 측벽 및 바닥 렌더링 (두께 3.5px, 상단 개방형)
+        const isSpillingNow = state.mode === 'manual' && state.wallRise > state.deltaH + 1e-4;
+        ctx.save();
+        ctx.strokeStyle = isSpillingNow ? '#dc2626' : '#0f172a';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
+        ctx.beginPath();
+        ctx.moveTo(cupLeftX, cupTopY);
+        ctx.lineTo(cupLeftX, cupBottomY);
+        ctx.lineTo(cupRightX, cupBottomY);
+        ctx.lineTo(cupRightX, cupTopY);
+        ctx.stroke();
+
+        // 상단 림(H) 임계선 마커
+        ctx.strokeStyle = isSpillingNow ? '#dc2626' : '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(cupLeftX - 8, cupTopY);
+        ctx.lineTo(cupRightX + 8, cupTopY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 용기 눈금자 마킹 (우측 측벽)
+        ctx.fillStyle = '#475569';
+        ctx.font = '600 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`H=${(state.H * 100).toFixed(0)}cm`, cupRightX + 6, cupTopY + 3);
+        ctx.fillStyle = '#0284c7';
+        ctx.fillText(`H₀=${(state.H0 * 100).toFixed(0)}cm`, cupRightX + 6, waterCenterY + 3);
+        ctx.restore();
+
+        // 5) 컵 내부/상단 HUD: 가속도 벡터 화살표 (g, -a, g_eff) 및 경사각 θ, 여유고 %
+        drawInCupVectorHUD(ctx, cupScreenCenterX, waterCenterY, cupTopY, cupWidthPx);
+
+        // 6) 유출 물방울 파티클 렌더링 (2D 뉴턴 역학 포물선 낙하)
+        if (state.particles.length > 0) {
+          ctx.save();
+          for (let i = 0; i < state.particles.length; i++) {
+            const p = state.particles[i];
+            const px = cupScreenCenterX + (p.worldX - state.x) * cupScale;
+            const py = cupBottomY - p.worldY * cupScale;
+
+            ctx.beginPath();
+            ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(2, 132, 199, ${p.alpha.toFixed(2)})`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(56, 189, 248, ${p.alpha.toFixed(2)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      // 화살표 드로잉 유틸리티
+      function drawVectorArrow(ctx, x1, y1, x2, y2, color, label) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        if (len < 3) return;
+
+        const angle = Math.atan2(dy, dx);
+        const headLen = 6;
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.8;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+
+        if (label) {
+          ctx.font = '700 10px "JetBrains Mono", monospace';
+          ctx.fillText(label, x2 + (dx >= 0 ? 5 : -24), y2 + (dy >= 0 ? 10 : -4));
+        }
+        ctx.restore();
+      }
+
+      // 컵 내부 벡터 다이어그램 및 HUD 오버레이
+      function drawInCupVectorHUD(ctx, centerX, waterCenterY, cupTopY, cupWidthPx) {
+        const vecScale = 2.6; // m/s² -> px 변환 스케일
+        const gPx = G * vecScale; // 약 25.5px 아래 방향
+        const minusAPx = -state.a * vecScale; // 관성력 방향 (-a i)
+
+        // 벡터 원점: 수면 중심축 피벗(centerX, waterCenterY)
+        const ox = centerX;
+        const oy = waterCenterY;
+
+        // 1) 중력 벡터 g (수직 하방)
+        drawVectorArrow(ctx, ox, oy, ox, oy + gPx, '#334155', 'g');
+
+        // 2) 관성 가속도 벡터 -a (수평 방향)
+        if (Math.abs(minusAPx) > 2) {
+          drawVectorArrow(ctx, ox, oy, ox + minusAPx, oy, '#d97706', '-a');
+
+          // 평행사변형 점선 보조줄
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(ox + minusAPx, oy);
+          ctx.lineTo(ox + minusAPx, oy + gPx);
+          ctx.lineTo(ox, oy + gPx);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // 3) 유효 중력 가속도 벡터 g_eff = -a i - g k (수면에 항상 직교!)
+        drawVectorArrow(ctx, ox, oy, ox + minusAPx, oy + gPx, '#dc2626', 'g_eff');
+
+        // 컵 상단 플로팅 텔레메트리 배지 (수면 경사각 θ & 잔여 여유고 %)
+        const hudY = Math.max(46, cupTopY - 26);
+        const hudText = `θ=${state.thetaDeg.toFixed(1)}° | 여유고 ${state.clearancePct.toFixed(0)}%`;
+        ctx.save();
+        ctx.font = '600 10px "JetBrains Mono", monospace';
+        const boxW = Math.max(128, ctx.measureText(hudText).width + 16);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+        ctx.strokeStyle = state.clearancePct <= 5 ? '#dc2626' : '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.fillRect(centerX - boxW * 0.5, hudY - 9, boxW, 18);
+        ctx.strokeRect(centerX - boxW * 0.5, hudY - 9, boxW, 18);
+
+        ctx.fillStyle = state.clearancePct <= 5 ? '#dc2626' : '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(hudText, centerX, hudY);
+        ctx.restore();
+      }
+
+      /* --------------------------------------------------------------------
+         8. 하단 4채널 실시간 스트리밍 차트 렌더러 (PURE CANVAS 2D)
+         -------------------------------------------------------------------- */
+      function renderAllCharts() {
+        renderTimeChart(dom.chartPos, 'x');
+        renderTimeChart(dom.chartVel, 'v');
+        renderTimeChart(dom.chartAcc, 'a');
+        renderSqrtCurveChart(dom.chartSqrt);
+      }
+
+      function renderTimeChart(canvas, channel) {
+        const { ctx, w, h, dpr } = resizeCanvasToDisplaySize(canvas);
+        ctx.save();
+        ctx.scale(dpr, dpr);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+
+        const padL = 38;
+        const padR = 12;
+        const padT = 14;
+        const padB = 22;
+        const plotW = Math.max(10, w - padL - padR);
+        const plotH = Math.max(10, h - padT - padB);
+
+        const T = Math.max(0.5, state.T_opt);
+        const maxTimeWindow = Math.max(T * 1.15, state.t);
+        const minTimeWindow = state.mode === 'manual' && state.t > T * 1.15 ? state.t - T * 1.15 : 0;
+        const timeSpan = Math.max(0.5, maxTimeWindow - minTimeWindow);
+
+        // 채널별 Y축 범위 설정
+        let yMin = 0;
+        let yMax = 1;
+        if (channel === 'x') {
+          yMin = -0.2;
+          yMax = Math.max(state.L * 1.15, 0.6);
+        } else if (channel === 'v') {
+          const vPeak = Math.max(state.vMax_opt * 1.25, 1.0);
+          yMin = -vPeak * 0.35;
+          yMax = vPeak;
+        } else if (channel === 'a') {
+          const aLim = Math.max(state.aMax * 1.45, 5.0);
+          yMin = -aLim;
+          yMax = aLim;
+        }
+
+        const timeToX = (tVal) => padL + ((tVal - minTimeWindow) / timeSpan) * plotW;
+        const valToY = (vVal) => padT + plotH - ((vVal - yMin) / (yMax - yMin)) * plotH;
+
+        // 배경 수평 그리드 및 영점(0) 축
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const gy = padT + (plotH * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padL, gy);
+          ctx.lineTo(padL + plotW, gy);
+          ctx.stroke();
+        }
+
+        // y = 0 기준선
+        const zeroY = valToY(0);
+        if (zeroY >= padT && zeroY <= padT + plotH) {
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(padL, zeroY);
+          ctx.lineTo(padL + plotW, zeroY);
+          ctx.stroke();
+        }
+
+        // t = T/2 변곡점 및 t = T 도달 시점 수직 보조선
+        const halfTX = timeToX(T * 0.5);
+        const fullTX = timeToX(T);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.setLineDash([3, 3]);
+        if (halfTX >= padL && halfTX <= padL + plotW) {
+          ctx.beginPath();
+          ctx.moveTo(halfTX, padT);
+          ctx.lineTo(halfTX, padT + plotH);
+          ctx.stroke();
+        }
+        if (fullTX >= padL && fullTX <= padL + plotW) {
+          ctx.beginPath();
+          ctx.moveTo(fullTX, padT);
+          ctx.lineTo(fullTX, padT + plotH);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // 가속도 차트일 경우 ±a_max 임계 한계선 표시
+        if (channel === 'a') {
+          const yPlusAMax = valToY(state.aMax);
+          const yMinusAMax = valToY(-state.aMax);
+          ctx.strokeStyle = 'rgba(220, 38, 38, 0.55)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(padL, yPlusAMax);
+          ctx.lineTo(padL + plotW, yPlusAMax);
+          ctx.moveTo(padL, yMinusAMax);
+          ctx.lineTo(padL + plotW, yMinusAMax);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // 1) 이론적 최적 뱅뱅 궤적 레퍼런스 곡선 렌더링 (점선)
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        const steps = 60;
+        for (let i = 0; i <= steps; i++) {
+          const tau = (i / steps) * T;
+          let refVal = 0;
+          if (tau <= T * 0.5) {
+            if (channel === 'x') refVal = 0.5 * state.aMax * tau * tau;
+            else if (channel === 'v') refVal = state.aMax * tau;
+            else if (channel === 'a') refVal = state.aMax;
+          } else {
+            const rem = T - tau;
+            if (channel === 'x') refVal = state.L - 0.5 * state.aMax * rem * rem;
+            else if (channel === 'v') refVal = state.aMax * rem;
+            else if (channel === 'a') refVal = -state.aMax;
+          }
+          const px = timeToX(tau);
+          const py = Math.max(padT, Math.min(padT + plotH, valToY(refVal)));
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 2) 실시간 계측 궤적(Live Trace) 렌더링
+        if (state.history.length > 1) {
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          let started = false;
+          for (let i = 0; i < state.history.length; i++) {
+            const pt = state.history[i];
+            if (pt.t < minTimeWindow) continue;
+            const px = timeToX(pt.t);
+            const py = Math.max(padT, Math.min(padT + plotH, valToY(pt[channel])));
+            if (!started) {
+              ctx.moveTo(px, py);
+              started = true;
+            } else {
+              ctx.lineTo(px, py);
+            }
+          }
+          ctx.stroke();
+        }
+
+        // 현재 순시 상태 포인트 마커
+        const curX = Math.max(padL, Math.min(padL + plotW, timeToX(state.t)));
+        const curY = Math.max(padT, Math.min(padT + plotH, valToY(state[channel])));
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.arc(curX, curY, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 좌측 Y축 및 하단 X축 수치 라벨
+        ctx.fillStyle = '#64748b';
+        ctx.font = '500 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(yMax.toFixed(1), padL - 4, padT + 4);
+        ctx.fillText('0.0', padL - 4, Math.max(padT + 12, Math.min(padT + plotH - 8, zeroY)));
+        ctx.fillText(yMin.toFixed(1), padL - 4, padT + plotH - 2);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        if (halfTX >= padL && halfTX <= padL + plotW) {
+          ctx.fillText('T/2', halfTX, padT + plotH + 4);
+        }
+        if (fullTX >= padL && fullTX <= padL + plotW) {
+          ctx.fillText(`T=${T.toFixed(2)}s`, fullTX, padT + plotH + 4);
+        }
+
+        ctx.restore();
+      }
+
+      // 채널 4: 시간-거리 무리함수 역함수 T(L) = 2 * sqrt(L / a_max) 대조 곡선
+      function renderSqrtCurveChart(canvas) {
+        const { ctx, w, h, dpr } = resizeCanvasToDisplaySize(canvas);
+        ctx.save();
+        ctx.scale(dpr, dpr);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+
+        const padL = 38;
+        const padR = 14;
+        const padT = 14;
+        const padB = 22;
+        const plotW = Math.max(10, w - padL - padR);
+        const plotH = Math.max(10, h - padT - padB);
+
+        const maxL = 5.0;
+        const maxT = Math.max(2.5, 2 * Math.sqrt(maxL / state.aMax) * 1.1);
+
+        const lToX = (lVal) => padL + (lVal / maxL) * plotW;
+        const tToY = (tVal) => padT + plotH - (tVal / maxT) * plotH;
+
+        // 그리드
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const gy = padT + (plotH * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padL, gy);
+          ctx.lineTo(padL + plotW, gy);
+          ctx.stroke();
+        }
+
+        // 무리함수 곡선 T(L) = 2 * sqrt(L / a_max)
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        const steps = 80;
+        for (let i = 0; i <= steps; i++) {
+          const lVal = (i / steps) * maxL;
+          const tVal = 2 * Math.sqrt(lVal / state.aMax);
+          const px = lToX(lVal);
+          const py = tToY(tVal);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // 현재 설정된 목표 거리 L과 최소 시간 T(L) 좌표점 교차선 및 마커 플로팅
+        const targetX = lToX(state.L);
+        const targetY = tToY(state.T_opt);
+
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(targetX, padT + plotH);
+        ctx.lineTo(targetX, targetY);
+        ctx.lineTo(padL, targetY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 현재 주행 좌표 (x(t), t) 플로팅
+        const liveX = lToX(Math.max(0, Math.min(maxL, state.x)));
+        const liveY = tToY(Math.max(0, Math.min(maxT, state.t)));
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(liveX, liveY, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 목표 작동점 (L, T(L)) 강조 포인트
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 축 텍스트
+        ctx.fillStyle = '#64748b';
+        ctx.font = '500 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${maxT.toFixed(1)}s`, padL - 4, padT + 4);
+        ctx.fillText('0s', padL - 4, padT + plotH - 2);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('0m', padL, padT + plotH + 4);
+        ctx.fillText(`L=${state.L.toFixed(1)}m`, targetX, padT + plotH + 4);
+        ctx.fillText('5.0m', padL + plotW - 8, padT + plotH + 4);
+
+        ctx.restore();
+      }
+
+      /* --------------------------------------------------------------------
+         9. 사용자 인터랙션 핸들러 (DRAG, OPTIMAL RUN, SLIDERS, SHORTCUTS)
+         -------------------------------------------------------------------- */
+      function setInteractionMode(newMode) {
+        state.mode = newMode;
+        if (newMode === 'manual') {
+          dom.tabModeManual.classList.add('active');
+          dom.tabModeAuto.classList.remove('active');
+          dom.modeDot.style.background = '#0284c7';
+          dom.overlayModeText.textContent = 'MANUAL DRAG MODE';
+          dom.overlayHintText.textContent = '벨트를 마우스/터치로 좌우 드래그하여 가속도를 직접 인가하십시오';
+        } else {
+          dom.tabModeAuto.classList.add('active');
+          dom.tabModeManual.classList.remove('active');
+          dom.modeDot.style.background = '#059669';
+          dom.overlayModeText.textContent = 'AUTO BANG-BANG OPTIMAL';
+          dom.overlayHintText.textContent = `최소 시간 궤적 추종 중 (T = ${state.T_opt.toFixed(3)}s, 측벽 수위 = H 정밀 도달)`;
+        }
+      }
+
+      function startOptimalRun() {
+        soundEngine.resume();
+        recalculatePhysicsParameters();
+
+        // 원점 초기화 및 최적 뱅뱅 주행 개시
+        state.x = 0.0;
+        state.v = 0.0;
+        state.a = 0.0;
+        state.t = 0.0;
+        state.autoCompleted = false;
+        state.isDragging = false;
+        state.spillVolumeML = 0.0;
+        state.spillDropsCount = 0;
+        state.particles = [];
+        state.history = [{ t: 0, x: 0, v: 0, a: state.aMax }];
+
+        setInteractionMode('auto');
+        if (!state.isRunning) togglePlayPause();
+        animateButtonHaptic(dom.btnRunOptimal);
+      }
+
+      function resetSimulation() {
+        state.x = 0.0;
+        state.v = 0.0;
+        state.a = 0.0;
+        state.t = 0.0;
+        state.autoCompleted = false;
+        state.isDragging = false;
+        state.targetManualVel = 0;
+        state.emaVel1 = 0;
+        state.emaVel2 = 0;
+        state.emaAcc1 = 0;
+        state.emaAcc2 = 0;
+        state.spillVolumeML = 0.0;
+        state.spillDropsCount = 0;
+        state.particles = [];
+        state.history = [];
+
+        setInteractionMode('manual');
+        updateTelemetryDOM();
+        animateButtonHaptic(dom.btnReset);
+      }
+
+      function togglePlayPause() {
+        state.isRunning = !state.isRunning;
+        dom.playPauseText.textContent = state.isRunning ? 'PAUSE' : 'PLAY';
+        dom.playPauseIcon.setAttribute('data-lucide', state.isRunning ? 'pause' : 'play');
+        if (window.lucide) window.lucide.createIcons();
+        animateButtonHaptic(dom.btnPlayPause);
+      }
+
+      function animateButtonHaptic(btnEl) {
+        if (!window.gsap || !btnEl) return;
+        window.gsap.fromTo(
+          btnEl,
+          { scale: 0.96 },
+          { scale: 1.0, duration: 0.22, ease: 'back.out(2)' }
+        );
+      }
+
+      // 캔버스 마우스 / 터치 수동 드래그 핸들러
+      function handlePointerDown(clientX) {
+        soundEngine.resume();
+        // 자동 주행 중 벨트를 클릭하거나 드래그하면 즉시 수동 모드로 부드럽게 제어권 전환
+        if (state.mode === 'auto') {
+          setInteractionMode('manual');
+          state.emaVel1 = state.v;
+          state.emaVel2 = state.v;
+          state.emaAcc1 = state.a;
+          state.emaAcc2 = state.a;
+        }
+        state.isDragging = true;
+        state.dragLastClientX = clientX;
+        state.targetManualVel = state.v;
+      }
+
+      function handlePointerMove(clientX) {
+        if (!state.isDragging) return;
+        const dxPx = clientX - state.dragLastClientX;
+        state.dragLastClientX = clientX;
+
+        // 화면 픽셀 변위를 물리 속도 목표치로 변환
+        const rect = dom.simCanvas.getBoundingClientRect();
+        const worldPerPx = Math.max(state.L, 1.8) / Math.max(220, rect.width - 180);
+        const instantaneousVel = (dxPx * worldPerPx) * 60;
+        state.targetManualVel = Math.max(-12, Math.min(12, instantaneousVel));
+      }
+
+      function handlePointerUp() {
+        state.isDragging = false;
+        state.targetManualVel = 0;
+      }
+
+      dom.simCanvas.addEventListener('mousedown', (e) => handlePointerDown(e.clientX));
+      window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX));
+      window.addEventListener('mouseup', handlePointerUp);
+
+      dom.simCanvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+          handlePointerDown(e.touches[0].clientX);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (state.isDragging && e.touches.length > 0) {
+          handlePointerMove(e.touches[0].clientX);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', handlePointerUp);
+
+      // 슬라이더 및 GSAP 플로팅 수치 툴팁 바인딩
+      function bindSliderWithTooltip(sliderEl, tooltipEl, paramKey, unitStr, decimals) {
+        const updateTooltipPos = () => {
+          const min = parseFloat(sliderEl.min);
+          const max = parseFloat(sliderEl.max);
+          const val = parseFloat(sliderEl.value);
+          const ratio = (val - min) / (max - min);
+          tooltipEl.style.left = `calc(${ratio * 100}% + ${(0.5 - ratio) * 16}px)`;
+          tooltipEl.textContent = `${val.toFixed(decimals)} ${unitStr}`;
+        };
+
+        const showTooltip = () => {
+          updateTooltipPos();
+          if (window.gsap) {
+            window.gsap.to(tooltipEl, { opacity: 1, scale: 1, y: -2, duration: 0.16, ease: 'power2.out' });
+          } else {
+            tooltipEl.style.opacity = '1';
+          }
+        };
+
+        const hideTooltip = () => {
+          if (window.gsap) {
+            window.gsap.to(tooltipEl, { opacity: 0, scale: 0.85, y: 0, duration: 0.18 });
+          } else {
+            tooltipEl.style.opacity = '0';
+          }
+        };
+
+        sliderEl.addEventListener('input', () => {
+          soundEngine.resume();
+          state[paramKey] = parseFloat(sliderEl.value);
+
+          // H 슬라이더 조절 시 H0가 H보다 커지지 않도록 실시간 연동
+          if (paramKey === 'H' && state.H0 > state.H - 0.005) {
+            state.H0 = Math.max(0.02, +(state.H - 0.005).toFixed(3));
+            dom.sliderH0.value = state.H0;
+          }
+          // H0 슬라이더 조절 시 H가 H0보다 작으면 H를 함께 확장
+          if (paramKey === 'H0' && state.H0 > state.H - 0.005) {
+            state.H = Math.min(0.25, +(state.H0 + 0.005).toFixed(3));
+            dom.sliderH.value = state.H;
+          }
+
+          recalculatePhysicsParameters();
+          updateTooltipPos();
+        });
+
+        sliderEl.addEventListener('mousedown', showTooltip);
+        sliderEl.addEventListener('touchstart', showTooltip, { passive: true });
+        sliderEl.addEventListener('mouseup', hideTooltip);
+        sliderEl.addEventListener('touchend', hideTooltip);
+        sliderEl.addEventListener('mouseleave', hideTooltip);
+      }
+
+      bindSliderWithTooltip(dom.sliderW, dom.tooltipW, 'W', 'm', 3);
+      bindSliderWithTooltip(dom.sliderH, dom.tooltipH, 'H', 'm', 3);
+      bindSliderWithTooltip(dom.sliderH0, dom.tooltipH0, 'H0', 'm', 3);
+      bindSliderWithTooltip(dom.sliderL, dom.tooltipL, 'L', 'm', 2);
+
+      // 원클릭 프리셋 버튼 이벤트
+      dom.presetBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          soundEngine.resume();
+          const key = btn.getAttribute('data-preset');
+          const p = PRESETS[key];
+          if (!p) return;
+
+          dom.presetBtns.forEach((b) => b.classList.remove('active-mode'));
+          btn.classList.add('active-mode');
+
+          state.W = p.W;
+          state.H = p.H;
+          state.H0 = p.H0;
+
+          dom.sliderW.value = p.W;
+          dom.sliderH.value = p.H;
+          dom.sliderH0.value = p.H0;
+
+          recalculatePhysicsParameters();
+          resetSimulation();
+          animateButtonHaptic(btn);
+        });
+      });
+
+      // 버튼 클릭 이벤트 바인딩
+      dom.btnRunOptimal.addEventListener('click', startOptimalRun);
+      dom.btnPlayPause.addEventListener('click', togglePlayPause);
+      dom.btnReset.addEventListener('click', resetSimulation);
+      dom.tabModeManual.addEventListener('click', () => setInteractionMode('manual'));
+      dom.tabModeAuto.addEventListener('click', startOptimalRun);
+
+      dom.btnCameraMode.addEventListener('click', () => {
+        state.cameraFollowCup = !state.cameraFollowCup;
+        dom.cameraModeLabel.textContent = state.cameraFollowCup
+          ? '컵 추적 카메라 (Cup Lock)'
+          : '월드 프레임 (0→L)';
+        animateButtonHaptic(dom.btnCameraMode);
+      });
+
+      dom.btnAudioToggle.addEventListener('click', () => {
+        soundEngine.toggleMute();
+        animateButtonHaptic(dom.btnAudioToggle);
+      });
+
+      // 소프트 택타일 버튼 GSAP 마이크로 호버 엘리베이션
+      document.querySelectorAll('.tactile-btn').forEach((btn) => {
+        btn.addEventListener('mouseenter', () => {
+          if (window.gsap) {
+            window.gsap.to(btn, { y: -1, duration: 0.14, ease: 'power1.out' });
+          }
+        });
+        btn.addEventListener('mouseleave', () => {
+          if (window.gsap) {
+            window.gsap.to(btn, { y: 0, duration: 0.14, ease: 'power1.out' });
+          }
+        });
+      });
+
+      // 키보드 단축키 시스템 (Space, R, A, M)
+      window.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+          if (e.code !== 'Space' && e.code !== 'KeyR' && e.code !== 'KeyA' && e.code !== 'KeyM') return;
+        }
+
+        if (e.code === 'Space') {
+          e.preventDefault();
+          togglePlayPause();
+        } else if (e.code === 'KeyR') {
+          e.preventDefault();
+          resetSimulation();
+        } else if (e.code === 'KeyA') {
+          e.preventDefault();
+          startOptimalRun();
+        } else if (e.code === 'KeyM') {
+          e.preventDefault();
+          if (state.mode === 'manual') startOptimalRun();
+          else setInteractionMode('manual');
+        }
+      });
+
+      /* --------------------------------------------------------------------
+         10. 메인 애니메이션 루프 (60FPS / 120FPS requestAnimationFrame)
+         -------------------------------------------------------------------- */
+      let lastFrameTime = performance.now();
+
+      function masterLoop(now) {
+        const dt = (now - lastFrameTime) * 0.001;
+        lastFrameTime = now;
+
+        stepPhysics(dt);
+        renderMainSimulation();
+        renderAllCharts();
+
+        requestAnimationFrame(masterLoop);
+      }
+
+      // 초기 실행
+      window.addEventListener('load', () => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+        recalculatePhysicsParameters();
+        updateTelemetryDOM();
+        lastFrameTime = performance.now();
+        requestAnimationFrame(masterLoop);
+      });
+    })();
+  </script>
+</body>
+</html>
